@@ -227,3 +227,114 @@ class TestConvenienceMethods:
         body = json.loads(requests[0].content)
         assert body["domain"] == [["is_company", "=", True]]
         assert body["limit"] == 3
+
+
+class TestWriteMethods:
+    @pytest.mark.asyncio
+    async def test_create_posts_values_and_returns_id(self, client):
+        requests = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            return httpx.Response(200, json=42)
+
+        client._client = httpx.AsyncClient(
+            base_url=client.base_url,
+            transport=httpx.MockTransport(handler),
+        )
+
+        result = await client.create("res.partner", {"name": "Acme"})
+
+        assert result == 42
+        assert requests[0].url.path == "/json/2/res.partner/create"
+        body = json.loads(requests[0].content)
+        assert body == {"vals_list": {"name": "Acme"}}
+
+    @pytest.mark.asyncio
+    async def test_write_posts_ids_and_values(self, client):
+        requests = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            return httpx.Response(200, json=True)
+
+        client._client = httpx.AsyncClient(
+            base_url=client.base_url,
+            transport=httpx.MockTransport(handler),
+        )
+
+        result = await client.write("res.partner", [1, 2], {"name": "Updated"})
+
+        assert result is True
+        assert requests[0].url.path == "/json/2/res.partner/write"
+        body = json.loads(requests[0].content)
+        assert body == {"ids": [1, 2], "vals": {"name": "Updated"}}
+
+    @pytest.mark.asyncio
+    async def test_unlink_posts_ids(self, client):
+        requests = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            return httpx.Response(200, json=True)
+
+        client._client = httpx.AsyncClient(
+            base_url=client.base_url,
+            transport=httpx.MockTransport(handler),
+        )
+
+        result = await client.unlink("res.partner", [1, 2])
+
+        assert result is True
+        assert requests[0].url.path == "/json/2/res.partner/unlink"
+        body = json.loads(requests[0].content)
+        assert body == {"ids": [1, 2]}
+
+
+class TestDocMethods:
+    @pytest.mark.asyncio
+    async def test_get_doc_index_posts_to_correct_endpoint(self, client):
+        requests = []
+        index_data = {"modules": ["base"], "models": []}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            return httpx.Response(200, json=index_data)
+
+        client._client = httpx.AsyncClient(
+            base_url=client.base_url,
+            transport=httpx.MockTransport(handler),
+        )
+
+        result = await client.get_doc_index()
+
+        assert result == index_data
+        assert requests[0].url.path == "/doc-bearer/index.json"
+        body = json.loads(requests[0].content)
+        assert body == {}
+
+    @pytest.mark.asyncio
+    async def test_get_doc_posts_model_name_in_url(self, client):
+        requests = []
+        doc_data = {
+            "model": "res.partner",
+            "name": "Contact",
+            "fields": {},
+            "methods": {"write": {"signature": "(values)"}},
+        }
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            return httpx.Response(200, json=doc_data)
+
+        client._client = httpx.AsyncClient(
+            base_url=client.base_url,
+            transport=httpx.MockTransport(handler),
+        )
+
+        result = await client.get_doc("res.partner")
+
+        assert result == doc_data
+        assert requests[0].url.path == "/doc-bearer/res.partner.json"
+        body = json.loads(requests[0].content)
+        assert body == {}

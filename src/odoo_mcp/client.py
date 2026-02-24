@@ -149,3 +149,36 @@ class OdooClient:
         if order is not None:
             kwargs["order"] = order
         return await self.execute(model, "search", **kwargs)
+
+    async def create(self, model: str, values: dict) -> int:
+        """Create a new record and return its ID."""
+        return await self.execute(model, "create", vals_list=values)
+
+    async def write(self, model: str, ids: list[int], values: dict) -> bool:
+        """Update existing records with the given values."""
+        return await self.execute(model, "write", ids=ids, vals=values)
+
+    async def unlink(self, model: str, ids: list[int]) -> bool:
+        """Delete records by ID."""
+        return await self.execute(model, "unlink", ids=ids)
+
+    async def _request(self, path: str) -> Any:
+        """POST to an arbitrary path with an empty JSON body."""
+        client = await self._get_client()
+        response = await client.post(path, json={})
+        if response.status_code >= 400:
+            try:
+                detail = response.json()
+                message = detail.get("message") or detail.get("error", response.text)
+            except Exception:
+                message = response.text
+            raise OdooAPIError(response.status_code, message)
+        return response.json()
+
+    async def get_doc_index(self) -> dict:
+        """Fetch the documentation index: all models with field labels and method names."""
+        return await self._request("/doc-bearer/index.json")
+
+    async def get_doc(self, model: str) -> dict:
+        """Fetch full field and method documentation for a single model."""
+        return await self._request(f"/doc-bearer/{model}.json")

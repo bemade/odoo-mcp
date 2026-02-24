@@ -1,4 +1,7 @@
+from typing import Any
+
 from mcp.server.fastmcp import FastMCP
+from mcp.types import ToolAnnotations
 
 from odoo_mcp.client import OdooClient
 
@@ -14,7 +17,7 @@ def _get_client() -> OdooClient:
     return _client
 
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=False))
 async def search_records(
     model: str,
     domain: list | None = None,
@@ -45,7 +48,7 @@ async def search_records(
     )
 
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=False))
 async def read_record(
     model: str,
     ids: list[int],
@@ -62,7 +65,7 @@ async def read_record(
     return await client.read(model, ids, fields=fields)
 
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=False))
 async def list_models(
     domain: list | None = None,
     limit: int = 80,
@@ -87,7 +90,7 @@ async def list_models(
     )
 
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=False))
 async def get_model_fields(
     model: str,
     attributes: list[str] | None = None,
@@ -104,6 +107,123 @@ async def get_model_fields(
     """
     client = _get_client()
     return await client.fields_get(model, attributes=attributes)
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        destructiveHint=False, idempotentHint=False, openWorldHint=False
+    )
+)
+async def create_record(
+    model: str,
+    values: dict,
+) -> int:
+    """Create a new record in an Odoo model.
+
+    Args:
+        model: The Odoo model name (e.g. "res.partner").
+        values: Dict of field names to values (e.g. {"name": "Acme"}).
+
+    Returns:
+        The ID of the newly created record.
+    """
+    client = _get_client()
+    return await client.create(model, values)
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        destructiveHint=True, idempotentHint=True, openWorldHint=False
+    )
+)
+async def update_records(
+    model: str,
+    ids: list[int],
+    values: dict,
+) -> bool:
+    """Update existing records in an Odoo model.
+
+    Args:
+        model: The Odoo model name (e.g. "res.partner").
+        ids: List of record IDs to update.
+        values: Dict of field names to new values.
+
+    Returns:
+        True if the update succeeded.
+    """
+    client = _get_client()
+    return await client.write(model, ids, values)
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        destructiveHint=True, idempotentHint=False, openWorldHint=False
+    )
+)
+async def delete_records(
+    model: str,
+    ids: list[int],
+) -> bool:
+    """Delete records from an Odoo model.
+
+    Args:
+        model: The Odoo model name (e.g. "res.partner").
+        ids: List of record IDs to delete.
+
+    Returns:
+        True if the deletion succeeded.
+    """
+    client = _get_client()
+    return await client.unlink(model, ids)
+
+
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=False))
+async def get_model_doc(model: str, method: str | None = None) -> dict:
+    """Get API documentation for an Odoo model.
+
+    Without a method name, returns a compact summary: each method's name and
+    call signature.  With a method name, returns that method's full
+    documentation (parameters, types, defaults, docstring, return type).
+
+    Use this before call_method to discover exact parameter names and types.
+    Requires the API key user to be in the api_doc.group_allow_doc group.
+
+    Args:
+        model: The Odoo model name (e.g. "res.partner").
+        method: Optional method name. If provided, returns full docs for that
+            method only. If omitted, returns a summary of all methods.
+    """
+    client = _get_client()
+    doc = await client.get_doc(model)
+    methods = doc.get("methods", {})
+    if method:
+        return {method: methods.get(method, f"Method '{method}' not found")}
+    return {name: info.get("signature", "") for name, info in methods.items()}
+
+
+@mcp.tool(
+    annotations=ToolAnnotations(
+        destructiveHint=True, idempotentHint=False, openWorldHint=False
+    )
+)
+async def call_method(
+    model: str,
+    method: str,
+    ids: list[int] | None = None,
+    params: dict | None = None,
+) -> Any:
+    """Call any public method on an Odoo model.
+
+    Use get_model_doc first to discover the correct parameter names and types.
+
+    Args:
+        model: The Odoo model name (e.g. "sale.order").
+        method: The method name (e.g. "action_confirm").
+        ids: Optional list of record IDs to operate on.
+        params: Optional dict of keyword arguments passed to the method.
+    """
+    client = _get_client()
+    return await client.execute(model, method, ids=ids, **(params or {}))
 
 
 def main():
