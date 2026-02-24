@@ -1,0 +1,41 @@
+[project]
+name = "bemade-odoo-mcp"
+version = "0.1.0a1"
+description = "MCP server for Odoo 19.0 via the JSON-2 API"
+license = "LGPL-3.0-only"
+authors = [
+    { name = "Marc Durepos, Bemade Inc.", email = "marc@bemade.org" },
+]
+readme = "README.md"
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+]
+requires-python = ">=3.12"
+dependencies = [
+    "httpx>=0.28.1",
+    "mcp[cli]>=1.26.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/bemade/odoo-mcp"
+Repository = "https://github.com/bemade/odoo-mcp"
+Issues = "https://github.com/bemade/odoo-mcp/issues"
+
+[project.scripts]
+odoo-mcp = "odoo_mcp.server:main"
+
+[build-system]
+requires = ["uv_build>=0.9.26,<0.10.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "odoo_mcp"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "pytest-asyncio>=1.3.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
