@@ -86,6 +86,7 @@ class OdooClient:
 
     async def _authenticate_session(self) -> None:
         """Authenticate with username/password via JSON-RPC."""
+        assert self._client is not None
         payload = {
             "jsonrpc": "2.0",
             "method": "call",
@@ -168,7 +169,13 @@ class OdooClient:
                 message = response.text
             raise OdooAPIError(response.status_code, message)
 
-        return response.json()
+        try:
+            return response.json()
+        except Exception as exc:
+            raise OdooAPIError(
+                response.status_code,
+                f"Non-JSON response (is this an Odoo 19+ instance?): {response.text[:200]}",
+            ) from exc
 
     # -- JSON-RPC transport (Session) ----------------------------------------
 
@@ -289,7 +296,10 @@ class OdooClient:
 
     async def create(self, model: str, values: dict) -> int:
         """Create a new record and return its ID."""
-        return await self.execute(model, "create", vals_list=values)
+        result = await self.execute(model, "create", vals_list=values)
+        if isinstance(result, list):
+            return result[0]
+        return result
 
     async def write(self, model: str, ids: list[int], values: dict) -> bool:
         """Update existing records with the given values."""

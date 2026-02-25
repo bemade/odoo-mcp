@@ -483,7 +483,7 @@ class TestWriteMethods:
 
         def handler(request: httpx.Request) -> httpx.Response:
             requests.append(request)
-            return httpx.Response(200, json=42)
+            return httpx.Response(200, json=[42])
 
         _mock_client(client, handler)
         result = await client.create("res.partner", {"name": "Acme"})
@@ -492,6 +492,30 @@ class TestWriteMethods:
         assert requests[0].url.path == "/json/2/res.partner/create"
         body = json.loads(requests[0].content)
         assert body == {"vals_list": {"name": "Acme"}}
+
+    @pytest.mark.asyncio
+    async def test_create_unwraps_bare_int(self, client):
+        """Handle legacy responses that return a bare int."""
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=42)
+
+        _mock_client(client, handler)
+        result = await client.create("res.partner", {"name": "Acme"})
+        assert result == 42
+
+    @pytest.mark.asyncio
+    async def test_create_unwraps_list_jsonrpc(self, session_client):
+        """JSON-RPC transport also returns list-wrapped IDs."""
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(
+                200, json={"jsonrpc": "2.0", "id": 1, "result": [99]}
+            )
+
+        _mock_session_client(session_client, handler)
+        result = await session_client.create("res.partner", {"name": "Test"})
+        assert result == 99
 
     @pytest.mark.asyncio
     async def test_write_posts_ids_and_values(self, client):
