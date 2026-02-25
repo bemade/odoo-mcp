@@ -1,3 +1,4 @@
+import os
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
@@ -5,7 +6,13 @@ from mcp.types import ToolAnnotations
 
 from odoo_mcp.client import OdooClient
 
-mcp = FastMCP("odoo")
+_instance_label = os.environ.get("ODOO_INSTANCE_LABEL", "odoo")
+_odoo_url = os.environ.get("ODOO_URL", "")
+
+mcp = FastMCP(
+    _instance_label,
+    instructions=f"Odoo instance '{_instance_label}' at {_odoo_url}",
+)
 
 _client: OdooClient | None = None
 

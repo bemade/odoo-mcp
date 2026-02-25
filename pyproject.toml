@@ -1,6 +1,6 @@
 [project]
 name = "bemade-odoo-mcp"
-version = "0.1.0a2"
+version = "0.1.0a3"
 description = "MCP server for Odoo 19.0 via the JSON-2 API"
 license = "LGPL-3.0-only"
 authors = [
