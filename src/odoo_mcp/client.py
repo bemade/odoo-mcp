@@ -194,6 +194,12 @@ class OdooClient:
         if context is not None:
             kw["context"] = context
 
+        args = [ids] if ids is not None else []
+        if method == "create" and "vals_list" in kw:
+            # call_kw special-cases create and reads the values from args[0];
+            # leaving them in kwargs makes Odoo raise IndexError.
+            args.append(kw.pop("vals_list"))
+
         payload = {
             "jsonrpc": "2.0",
             "method": "call",
@@ -201,7 +207,7 @@ class OdooClient:
             "params": {
                 "model": model,
                 "method": method,
-                "args": [ids] if ids is not None else [],
+                "args": args,
                 "kwargs": kw,
             },
         }
