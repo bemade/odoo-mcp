@@ -518,6 +518,49 @@ class TestWriteMethods:
         assert result == 99
 
     @pytest.mark.asyncio
+    async def test_create_sends_values_positionally_jsonrpc(self, session_client):
+        """call_kw special-cases create and reads values from args[0];
+        sending them as a kwarg makes Odoo raise IndexError."""
+        requests = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            return httpx.Response(
+                200, json={"jsonrpc": "2.0", "id": 1, "result": [42]}
+            )
+
+        _mock_session_client(session_client, handler)
+        result = await session_client.create("res.partner", {"name": "Acme"})
+
+        assert result == 42
+        body = json.loads(requests[0].content)
+        assert body["params"]["args"] == [{"name": "Acme"}]
+        assert "vals_list" not in body["params"]["kwargs"]
+
+    @pytest.mark.asyncio
+    async def test_execute_create_moves_vals_list_to_args_jsonrpc(
+        self, session_client
+    ):
+        """execute() callers (e.g. the call_method tool) hit the same
+        call_kw quirk — vals_list must be relocated to positional args."""
+        requests = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            return httpx.Response(
+                200, json={"jsonrpc": "2.0", "id": 1, "result": [7]}
+            )
+
+        _mock_session_client(session_client, handler)
+        await session_client.execute(
+            "res.partner", "create", vals_list=[{"name": "Acme"}]
+        )
+
+        body = json.loads(requests[0].content)
+        assert body["params"]["args"] == [[{"name": "Acme"}]]
+        assert body["params"]["kwargs"] == {}
+
+    @pytest.mark.asyncio
     async def test_write_posts_ids_and_values(self, client):
         requests = []
 
